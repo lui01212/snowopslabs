@@ -13,7 +13,7 @@ Effort is in engineering days and is an estimate, not a commitment.
 | # | Item | Area | Effort |
 |---|---|---|---|
 | [B1](#b1--activate-one-scenario-for-two-apps-at-once) | Activate one scenario for two apps at once | engine, content, UI | 18–22 |
-| [B2](#b2--k6-metrics-carry-no-app-label) | k6 metrics carry no app label | traffic, dashboards | 1–1.5 |
+| [B2](#b2--only-one-traffic-run-can-exist-at-a-time) | Only one traffic run can exist at a time | traffic, dashboards | 1–1.5 |
 | [B3](#b3--the-shared-request-dashboard-only-sees-the-default-metric-name) | The shared request dashboard only sees the default metric name | dashboards | 1–2 |
 | [B4](#b4--two-scenarios-can-mutate-the-same-app-at-once) | Two scenarios can mutate the same app at once | engine | 1–2 |
 | [B5](#b5--activating-from-the-ui-does-not-report-missing-hostnames) | Activating from the UI does not report missing hostnames | API, UI | 0.5–1 |
@@ -59,7 +59,7 @@ None of those need to change.
 3. API: `/api/v2/scenarios/{name}/activations/{app}` or an `app` query parameter;
    CLI `verify`/`down`/`status` require `--app` when more than one is active.
 4. UI: a scenario card lists its activations; verify and teardown per activation.
-5. One traffic run per app (see [B2](#b2--k6-metrics-carry-no-app-label)).
+5. One traffic run per app (see [B2](#b2--only-one-traffic-run-can-exist-at-a-time)).
 6. Content, by readiness:
    - ready once the engine supports it — autoscaling-under-load,
      backup-restore-drill, secrets-management, mesh-traffic-management,
@@ -82,21 +82,23 @@ not for comparing performance grades.
 
 ---
 
-## B2 — k6 metrics carry no app label
+## B2 — Only one traffic run can exist at a time
 
-**Problem.** There is one cluster-wide k6 Job (`traffic-k6`) and its remote-written
-metrics (`k6_http_reqs_total`, `k6_http_req_duration_p95`, …) have no `app`
-label. On Application Request Metrics the "Offered vs served" panel therefore
-compares all k6 traffic with whichever apps the App selector picks, and the k6
-panels cannot be filtered at all (they carry a description saying so). Two
-activations can never both be under load.
+**Problem.** There is one cluster-wide k6 Job (`traffic-k6`), so starting load
+against a second app replaces the first run. Two activations can never both be
+under load. The dashboards no longer need an `app` label to follow the App
+selector: Application Request Metrics filters the `k6_*` panels by the URL each
+request was sent to (`url=~"https?://$app\\..*"`). That works only while k6
+targets an in-cluster Service named after the app, so a custom
+`TRAFFIC_TARGET` drops out of every filtered panel.
 
 **Proposed approach.** Pass the target app into the run (`labctl traffic start
---app` already resolves it) and tag it: `k6 run --tag app=<app>`, which the
-Prometheus remote-write output turns into a label. Name the Job per app
-(`traffic-k6-<app>`) so runs can coexist, and make `traffic stop`/`status` accept
-`--app`. Then filter the k6 panels by `app=~"$app"` and remove their
-descriptions. Verify the label on a live lab before changing dashboards.
+--app` already resolves it). Name the Job per app (`traffic-k6-<app>`) so runs
+can coexist, and make `traffic stop`/`status` accept `--app`. Also tag it
+(`k6 run --tag app=<app>`, which the Prometheus remote-write output turns into a
+label) and move the k6 panels from the URL match to `app=~"$app"`, so a custom
+target is still attributed. Verify the label on a live lab before changing
+dashboards.
 
 **Start at.** `src/services/traffic/start.sh`, `src/internal/traffic/traffic.go`,
 `src/internal/cli/traffic.go`,
@@ -198,12 +200,16 @@ done
 docker restart k3d-snowops-agent-1-0
 ```
 
+**Already done.** `runtimes/k3d/up.sh` now also restarts a node container whose
+k3s has died (`restart_dead_nodes`), so re-running `labctl lab up` recovers. Both
+fixes still run only on `up`.
+
 **Proposed approach.** Re-apply the limit wherever labctl touches a running
 cluster, not only at creation — `labctl status`, `labctl doctor`, and the start of
 every run-engine operation are candidates. Have `labctl status` report a node
 whose k3s process is gone while its container is up, with the recovery above.
 
-**Start at.** `runtimes/k3d/up.sh` (`raise_inotify_limits`),
+**Start at.** `runtimes/k3d/up.sh` (`raise_inotify_limits`, `restart_dead_nodes`),
 `src/internal/cli/status.go`, `src/internal/cli/doctor.go`.
 
 ---
@@ -496,8 +502,8 @@ Each is small, safe and independent:
   `pkg/checks.NewRunner` builds an `http.Client` with no `Timeout`. Only the
   per-check context bounds a request. Set a client timeout as a second guard.
 - The largest files mix several concerns and are the hardest to review:
-  `internal/scenario/engine.go` (1,450 lines), `internal/httpapi/handlers.go`
-  (1,070), `internal/incident/incident.go` (750). Split them by concern
+  `internal/scenario/engine.go` (1,370 lines), `internal/httpapi/handlers.go`
+  (1,040), `internal/incident/incident.go` (715). Split them by concern
   (install, state, templates; one handler file per resource), moving code
   without changing it.
 
