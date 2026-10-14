@@ -3,7 +3,11 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -56,6 +60,44 @@ func sanitizeRequestID(v string) string {
 		}
 	}
 	return v
+}
+
+// maxRequestBodyBytes caps a request body. Every body the API takes is a small
+// JSON object, so 1 MiB is ample and keeps a client from making the server
+// buffer an unbounded body.
+const maxRequestBodyBytes = 1 << 20
+
+// bodyLimitMiddleware reads a request body of up to maxRequestBodyBytes before
+// the handler runs, so every handler sees a bounded body; a larger one, with or
+// without a Content-Length, answers 413.
+func bodyLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Body == nil || r.Body == http.NoBody {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if r.ContentLength > maxRequestBodyBytes {
+			respondBodyTooLarge(w, r)
+			return
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxRequestBodyBytes))
+		if err != nil {
+			var tooLarge *http.MaxBytesError
+			if errors.As(err, &tooLarge) {
+				respondBodyTooLarge(w, r)
+				return
+			}
+			respondError(w, r, http.StatusBadRequest, "invalid_request", "could not read the request body")
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		next.ServeHTTP(w, r)
+	})
+}
+
+func respondBodyTooLarge(w http.ResponseWriter, r *http.Request) {
+	respondError(w, r, http.StatusRequestEntityTooLarge, "request_too_large",
+		fmt.Sprintf("the request body is larger than the %d MiB limit", maxRequestBodyBytes>>20))
 }
 
 // requestIDFrom returns the correlation ID stored on the context, or "" if the

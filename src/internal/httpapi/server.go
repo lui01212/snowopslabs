@@ -306,6 +306,9 @@ func (s *Server) registerAPI(api *mux.Router) {
 	// With LABCTL_AUTH on, every route except the auth endpoints needs a
 	// session, and operator-only changes need the operator role.
 	api.Use(s.authMiddleware)
+	// Bodies are capped after auth, so an unauthenticated request is refused
+	// before its body is read.
+	api.Use(bodyLimitMiddleware)
 	// Request instrumentation, innermost so it measures the handler itself.
 	// Only active when metrics are enabled.
 	if s.metrics != nil {

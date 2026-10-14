@@ -71,6 +71,7 @@ var knownProblemSlugs = []string{
 	"no_eligible_fault",
 	"no_more_hints",
 	"not_found",
+	"request_too_large",
 	"resolve_failed",
 	"session_error",
 	"too_many_requests",

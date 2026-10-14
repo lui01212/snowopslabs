@@ -46,6 +46,9 @@ Conventions, from [ADR-0006](../../adr/0006-api-conventions.md):
   that no route serves answers `404` with `not_found`, and a route called with a
   method it does not accept answers `405` with `method_not_allowed`; neither
   gets the SPA shell.
+- **Request bodies are capped at 1 MiB** (`maxRequestBodyBytes` in
+  `internal/httpapi/middleware.go`), far more than any body the API takes. A
+  larger body answers `413` with `request_too_large`, before the handler runs.
 - **List collections are paginated**: `{items, nextCursor}`, with `?limit` (max
   200) and an opaque `?cursor`. Page until `nextCursor` comes back empty.
 - **Catalog reads carry an `ETag`** and honour `If-None-Match` (→ 304).

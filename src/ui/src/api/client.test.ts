@@ -70,6 +70,15 @@ describe('api client', () => {
     server.use(http.get(`${API}/scenarios`, () => jsonError(404, 'no such collection')))
     await expect(api.listScenarios()).rejects.toThrow(/no such collection/)
   })
+
+  it('surfaces the size limit when a request body is too large', async () => {
+    server.use(
+      http.post(`${API}/auth/login`, () =>
+        jsonError(413, 'the request body is larger than the 1 MiB limit'),
+      ),
+    )
+    await expect(api.login('operator', 'x')).rejects.toThrow(/larger than the 1 MiB limit/)
+  })
 })
 
 // Every method on `api` is a thin binding of an HTTP verb to a URL. A wrong verb
