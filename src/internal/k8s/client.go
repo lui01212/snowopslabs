@@ -427,6 +427,49 @@ func HelmReleaseDeployed(ctx context.Context, namespace, release string) bool {
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
+// Inventory is the set of namespaces and Helm releases in the cluster, read
+// once so that many components can be checked without a kubectl call each.
+type Inventory struct {
+	namespaces map[string]bool
+	releases   map[string]bool // keyed "<namespace>/<release>"
+}
+
+// ReadInventory lists every namespace and every Helm release in the cluster
+// with two kubectl calls. A release is found by the Secrets Helm labels
+// owner=helm, as HelmReleaseExists does.
+func ReadInventory(ctx context.Context) (*Inventory, error) {
+	nsOut, err := kubectl(ctx, "get", "namespaces", "-o", "name")
+	if err != nil {
+		return nil, fmt.Errorf("listing namespaces: %w", err)
+	}
+	relOut, err := kubectl(ctx, "get", "secrets", "--all-namespaces", "-l", "owner=helm",
+		"-o", "custom-columns=NAMESPACE:.metadata.namespace,RELEASE:.metadata.labels.name", "--no-headers")
+	if err != nil {
+		return nil, fmt.Errorf("listing Helm releases: %w", err)
+	}
+	inv := &Inventory{namespaces: map[string]bool{}, releases: map[string]bool{}}
+	for ns := range strings.FieldsSeq(nsOut) {
+		inv.namespaces[strings.TrimPrefix(ns, "namespace/")] = true
+	}
+	for line := range strings.SplitSeq(relOut, "\n") {
+		if f := strings.Fields(line); len(f) == 2 {
+			inv.releases[f[0]+"/"+f[1]] = true
+		}
+	}
+	return inv, nil
+}
+
+// NamespaceExists reports whether the inventory holds namespace.
+func (inv *Inventory) NamespaceExists(namespace string) bool {
+	return inv.namespaces[namespace]
+}
+
+// HelmReleaseExists reports whether the inventory holds a Helm release named
+// release in namespace.
+func (inv *Inventory) HelmReleaseExists(namespace, release string) bool {
+	return inv.releases[namespace+"/"+release]
+}
+
 // AgentCount is the number of nodes without the control-plane role.
 func AgentCount(ctx context.Context) (int, error) {
 	out, err := kubectl(ctx, "get", "nodes", "-l", "!node-role.kubernetes.io/control-plane", "-o", "name")

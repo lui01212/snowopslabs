@@ -190,11 +190,11 @@ release is left behind.
 ## 5. Exact teardown from the inventory (W3-T04) ⚠️
 
 Every install/uninstall you ran above was recorded in the store's component
-inventory. `platform status` (no `--live`) shows it; `platform teardown` acts on
-it:
+inventory, and `platform teardown` acts on it. `platform status` (no `--live`)
+shows what the cluster holds, with labctl's last run for each component:
 
 ```bash
-$ labctl platform status          # store-derived: what labctl has installed
+$ labctl platform status          # what the cluster holds, with labctl's last run
 $ labctl platform teardown        # uninstall exactly that, reporting failures
 ```
 
