@@ -57,6 +57,15 @@ esac`,
 			want: []string{},
 		},
 		{
+			name: "a release left by a failed install does not mark its provider installed",
+			kubectl: `case "$*" in
+  *"get namespaces"*) echo namespace/monitoring ;;
+  *"owner=helm,status=deployed"*) exit 0 ;;
+  *"owner=helm"*) echo 'monitoring loki' ;;
+esac`,
+			want: []string{},
+		},
+		{
 			name:    "a cluster that cannot be read is an error, not an empty lab",
 			kubectl: "echo 'Unable to connect to the server' >&2; exit 1\n",
 			wantErr: true,

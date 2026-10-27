@@ -427,22 +427,23 @@ func HelmReleaseDeployed(ctx context.Context, namespace, release string) bool {
 	return err == nil && strings.TrimSpace(out) != ""
 }
 
-// Inventory is the set of namespaces and Helm releases in the cluster, read
+// Inventory is the set of namespaces and deployed Helm releases in the cluster, read
 // once so that many components can be checked without a kubectl call each.
 type Inventory struct {
 	namespaces map[string]bool
-	releases   map[string]bool // keyed "<namespace>/<release>"
+	releases   map[string]bool // deployed releases, keyed "<namespace>/<release>"
 }
 
-// ReadInventory lists every namespace and every Helm release in the cluster
-// with two kubectl calls. A release is found by the Secrets Helm labels
-// owner=helm, as HelmReleaseExists does.
+// ReadInventory lists every namespace and every deployed Helm release in the
+// cluster with two kubectl calls. A release is found by the Secrets Helm labels
+// owner=helm,status=deployed, as HelmReleaseDeployed does, so a release left by
+// a failed or pending install does not count.
 func ReadInventory(ctx context.Context) (*Inventory, error) {
 	nsOut, err := kubectl(ctx, "get", "namespaces", "-o", "name")
 	if err != nil {
 		return nil, fmt.Errorf("listing namespaces: %w", err)
 	}
-	relOut, err := kubectl(ctx, "get", "secrets", "--all-namespaces", "-l", "owner=helm",
+	relOut, err := kubectl(ctx, "get", "secrets", "--all-namespaces", "-l", "owner=helm,status=deployed",
 		"-o", "custom-columns=NAMESPACE:.metadata.namespace,RELEASE:.metadata.labels.name", "--no-headers")
 	if err != nil {
 		return nil, fmt.Errorf("listing Helm releases: %w", err)
@@ -464,9 +465,9 @@ func (inv *Inventory) NamespaceExists(namespace string) bool {
 	return inv.namespaces[namespace]
 }
 
-// HelmReleaseExists reports whether the inventory holds a Helm release named
-// release in namespace.
-func (inv *Inventory) HelmReleaseExists(namespace, release string) bool {
+// HelmReleaseDeployed reports whether the inventory holds a deployed Helm
+// release named release in namespace.
+func (inv *Inventory) HelmReleaseDeployed(namespace, release string) bool {
 	return inv.releases[namespace+"/"+release]
 }
 

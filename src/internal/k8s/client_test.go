@@ -447,6 +447,16 @@ esac`
 			},
 		},
 		{
+			name: "a release without a deployed revision does not count",
+			kubectl: `case "$*" in
+  *"get namespaces"*) echo namespace/monitoring ;;
+  *"owner=helm,status=deployed"*) echo 'monitoring   grafana' ;;
+  *"owner=helm"*) printf 'monitoring   grafana\nmonitoring   loki\n' ;;
+esac`,
+			ns:      map[string]bool{"monitoring": true},
+			release: map[[2]string]bool{{"monitoring", "grafana"}: true, {"monitoring", "loki"}: false},
+		},
+		{
 			name:    "an empty cluster holds nothing",
 			kubectl: "exit 0\n",
 			ns:      map[string]bool{"keda": false},
@@ -485,8 +495,8 @@ esac`,
 				}
 			}
 			for rel, want := range tt.release {
-				if got := inv.HelmReleaseExists(rel[0], rel[1]); got != want {
-					t.Errorf("HelmReleaseExists(%q, %q) = %v, want %v", rel[0], rel[1], got, want)
+				if got := inv.HelmReleaseDeployed(rel[0], rel[1]); got != want {
+					t.Errorf("HelmReleaseDeployed(%q, %q) = %v, want %v", rel[0], rel[1], got, want)
 				}
 			}
 		})

@@ -36,11 +36,12 @@ labctl platform status data/postgres
 
 `status` lists every component the cluster holds, however it got there:
 `platform up`, `scenario up --deploy-prereqs` or a manual `helm install`. A
-monitoring, logging or tracing provider counts when its Helm release exists,
-since they share a namespace; any other provider counts when its namespace
-exists. LAST RUN is labctl's last install or uninstall of the component. When
-the cluster does not answer, the table comes from the run history and the
-command says so.
+monitoring, logging or tracing provider counts when its Helm release is
+deployed, since they share a namespace; any other provider counts when its
+namespace exists. LAST RUN is labctl's last install or uninstall of the
+component. When that run failed, the state is `error`, even if the cluster
+still holds what the run left behind. When the cluster does not answer, the
+table comes from the run history and the command says so.
 
 `status --live` needs the cluster: when it does not answer, the command says so
 instead of printing an empty table.

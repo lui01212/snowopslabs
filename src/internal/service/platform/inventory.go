@@ -11,8 +11,8 @@ import (
 
 // Installed returns the "category/provider" name of every provider in reg that
 // the cluster holds, however it was installed. It reads the cluster once: a
-// provider that shares its namespace counts by its Helm release, any other by
-// its namespace.
+// provider that shares its namespace counts by its deployed Helm release, any
+// other by its namespace.
 func Installed(ctx context.Context, reg *catalog.Registry) (map[string]bool, error) {
 	inv, err := k8s.ReadInventory(ctx)
 	if err != nil {
@@ -23,7 +23,7 @@ func Installed(ctx context.Context, reg *catalog.Registry) (map[string]bool, err
 		for _, p := range reg.GetProviders(cat) {
 			found := inv.NamespaceExists(p.Namespace())
 			if p.SharesNamespace() {
-				found = inv.HelmReleaseExists(p.Namespace(), p.Name)
+				found = inv.HelmReleaseDeployed(p.Namespace(), p.Name)
 			}
 			if found {
 				installed[Component(cat, p.Name)] = true

@@ -29,7 +29,7 @@ case "$*" in
   "get namespaces -o name")
     printf 'namespace/%s\n' default kube-system traefik monitoring demo-app go-api
     ;;
-  *"--all-namespaces -l owner=helm"*) echo "monitoring   prometheus" ;;
+  *"--all-namespaces -l owner=helm,status=deployed"*) echo "monitoring   prometheus" ;;
   "get namespace traefik --no-headers") echo "traefik Active 1h" ;;
   "get namespace monitoring --no-headers") echo "monitoring Active 1h" ;;
   "get namespace "*) exit 1 ;;

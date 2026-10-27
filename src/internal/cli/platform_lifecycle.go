@@ -149,17 +149,16 @@ func withInstalled(targets [][2]string, installed map[string]bool) [][2]string {
 }
 
 // componentState is the state shown for a component: an install or uninstall
-// in flight first, then what the cluster holds. A component the cluster lacks
-// shows "error" when its last labctl run failed. Without the cluster, the run
-// history decides.
+// in flight first, then "error" when its last labctl run failed, even if the
+// cluster holds what that run left behind, then what the cluster holds.
+// Without the cluster, the run history decides.
 func componentState(s platsvc.Status, inCluster map[string]bool, clusterRead bool) string {
 	switch {
-	case s.State == platsvc.StateInstalling, s.State == platsvc.StateRemoving, !clusterRead:
+	case s.State == platsvc.StateInstalling, s.State == platsvc.StateRemoving,
+		s.State == platsvc.StateError, !clusterRead:
 		return string(s.State)
 	case inCluster[s.Component]:
 		return string(platsvc.StateInstalled)
-	case s.State == platsvc.StateError:
-		return string(platsvc.StateError)
 	default:
 		return "not installed"
 	}
