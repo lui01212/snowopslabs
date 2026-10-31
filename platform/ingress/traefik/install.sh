@@ -63,7 +63,7 @@ quiet_discovery kubectl rollout status deployment/traefik -n $NAMESPACE --timeou
 
 # Create IngressRoute for Traefik Dashboard
 DOMAIN_SUFFIX="${DOMAIN_SUFFIX:-${CLUSTER_NAME:-snowops}.localhost}"
-cat <<EOF | quiet_discovery kubectl apply -f -
+quiet_discovery kubectl apply -f - <<EOF
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
