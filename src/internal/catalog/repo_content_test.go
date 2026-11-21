@@ -110,7 +110,7 @@ func TestVerifiedContentSet(t *testing.T) {
 			t.Errorf("incident %q is unverified but not in the known unverified set", f.Name)
 		}
 	}
-	if verifiedIncidents != 11 {
-		t.Errorf("verified incidents = %d, want 11 (every shipped fault, all review-confirmed)", verifiedIncidents)
+	if verifiedIncidents != 12 {
+		t.Errorf("verified incidents = %d, want 12 (every shipped fault, all review-confirmed)", verifiedIncidents)
 	}
 }

@@ -59,6 +59,7 @@ var shippedFaults = []string{
 	"noisy-neighbor",
 	"oom-kill",
 	"pending-unschedulable",
+	"probe-misconfigured",
 	"service-selector-broken",
 	"stray-pod-behind-service",
 }
