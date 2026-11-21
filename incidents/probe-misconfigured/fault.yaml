@@ -1,0 +1,34 @@
+name: probe-misconfigured
+verified: true
+displayName: "Readiness probe checks a path the app does not serve"
+description: "Requests to {{.WorkloadName}} through the ingress fail, but kubectl get pods shows every pod Running with no restarts and clean logs. kubectl get endpoints {{.WorkloadName}} lists none. Nothing has crashed and nothing is being killed - the pods are simply never marked ready."
+category: workload
+severity: high
+target:
+  namespace: "{{.WorkloadNamespace}}"
+  workload: "{{.WorkloadName}}"
+prerequisites:
+  apps:
+    - "{{.WorkloadName}}"
+detection:
+  name: readiness-probe-answers
+  type: script
+  script: checks/resolved.sh
+  timeoutSeconds: 30
+expectAlert: LabFaultPodNotReady
+
+references:
+  - label: "Kubernetes - Configure liveness, readiness and startup probes"
+    url: "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+    note: "How the kubelet runs each probe, and what it does when a readiness probe fails: the pod is removed from Service endpoints, not restarted."
+  - label: "Kubernetes - Pod lifecycle: container probes"
+    url: "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes"
+    note: "Which HTTP status codes count as success (200 to 399), and the difference between liveness, readiness and startup probes."
+
+snippets:
+  - label: "Point {{.WorkloadName}}'s readiness probe back at its health endpoint (JSON patch)"
+    description: "Apply with: kubectl -n {{.WorkloadNamespace}} patch deployment {{.WorkloadName}} --type=json --patch-file <this>. Use the path the app really serves."
+    yaml: |
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
+        value: /ready

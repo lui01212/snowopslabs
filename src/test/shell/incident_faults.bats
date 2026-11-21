@@ -34,6 +34,7 @@ if [ -n "${FAIL_ON:-}" ]; then
 fi
 healthy_selector='{"app.kubernetes.io/name":"cart","tier":"web"}'
 healthy_probe='{"httpGet":{"path":"/health","port":"http"}}'
+healthy_readiness_probe='{"httpGet":{"path":"/ready","port":"http"}}'
 healthy_refs="$(printf 'PORT||\nAPI_TOKEN|cart-secret|api-token')"
 case "$*" in
   *"apply -n monitoring -f -"*) cat >>"$STUB_DIR/applied-monitoring.yaml" ;;
@@ -114,6 +115,12 @@ case "$*" in
   *"get --raw"*) [ "${POD_GET:-ok}" = ok ] || exit 1 ;;
   *"get svc cart"*"ports[0].port}"*) printf '8080' ;;
 
+  # probe-misconfigured
+  *"get deploy"*"readinessProbe.httpGet.path}"*) printf '%s' "${READINESS_PATH-/ready}" ;;
+  *"get deploy"*"readinessProbe.httpGet.port}"*) printf 'http' ;;
+  *"get deploy"*"readinessProbe.httpGet.scheme}"*) printf 'HTTP' ;;
+  *"get deploy"*"readinessProbe}"*) printf '%s' "${READINESS_PROBE-$healthy_readiness_probe}" ;;
+
   # missing-secret-key: ENV_REFS is "<env>|<secret>|<key>" per variable
   *"get deploy"*"secretKeyRef.key}"*) printf '%s\n' "${ENV_REFS-$healthy_refs}" ;;
   *"get secret"*"go-template"*) printf '%s\n' "${SECRET_KEYS-api-token}" ;;
@@ -161,6 +168,7 @@ network-blackhole|rollout restart deploy/cart
 noisy-neighbor|apply -f -
 pending-unschedulable|patch deploy cart --type=strategic
 liveness-probe-kill|patch deploy cart --type=json
+probe-misconfigured|readinessProbe/httpGet/path
 missing-secret-key|patch secret cart-secret --type=json
 cpu-throttling|set resources deploy/cart --limits=cpu=
 dns-egress-blocked|apply -n shop -f -
@@ -928,6 +936,73 @@ neighbor() {
 @test "liveness-probe-kill: resolve stops the traffic inject started" {
   resolve liveness-probe-kill
   assert_called kubectl "delete job traffic-k6"
+}
+
+# ── probe-misconfigured ───────────────────────────────────────────────────────
+
+@test "probe-misconfigured: inject renames the probe path and records the original probe" {
+  inject probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl '"path":"/spec/template/spec/containers/0/readinessProbe/httpGet/path","value":"/healthz"'
+  assert_called kubectl "--from-literal=original-path=/ready"
+  assert_called kubectl '--from-literal=original-probe={"httpGet":{"path":"/ready","port":"http"}}'
+}
+
+@test "probe-misconfigured: inject retires this Deployment's older ReplicaSets only" {
+  inject probe-misconfigured
+  assert_called kubectl "scale rs cart-old --replicas=0"
+  refute_called kubectl "scale rs cart-new"
+  refute_called kubectl "scale rs other-old"
+}
+
+@test "probe-misconfigured: inject refuses a workload with no HTTP readiness probe" {
+  READINESS_PATH="" inject probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"has no HTTP readiness probe"* ]] || false
+  refute_called kubectl "patch"
+  refute_called kubectl "create configmap"
+}
+
+@test "probe-misconfigured: a second inject changes nothing" {
+  READINESS_PATH=/healthz inject probe-misconfigured
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already injected"* ]] || false
+  refute_called kubectl "patch"
+  refute_called kubectl "create configmap"
+}
+
+@test "probe-misconfigured: resolve puts back the recorded path while the probe fails" {
+  RECORD_original_path=/ready READINESS_PATH=/healthz POD_GET=fail resolve probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl '"op":"replace","path":"/spec/template/spec/containers/0/readinessProbe/httpGet/path","value":"/ready"'
+}
+
+@test "probe-misconfigured: resolve after a half fix to a path that still fails puts back the original" {
+  RECORD_original_path=/ready READINESS_PATH=/readyz POD_GET=fail resolve probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl '"value":"/ready"'
+}
+
+@test "probe-misconfigured: resolve leaves a path the learner chose that the app answers" {
+  RECORD_original_path=/ready READINESS_PATH=/health resolve probe-misconfigured
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already fixed"* ]] || false
+  refute_called kubectl "patch"
+  assert_called kubectl "delete configmap labfault-probe-misconfigured"
+}
+
+@test "probe-misconfigured: resolve puts back a probe the learner deleted" {
+  RECORD_original_path=/ready RECORD_original_probe='{"httpGet":{"path":"/ready","port":"http"}}' \
+    READINESS_PROBE="" READINESS_PATH="" resolve probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl '"op":"add","path":"/spec/template/spec/containers/0/readinessProbe","value":{"httpGet":{"path":"/ready","port":"http"}}'
+}
+
+@test "probe-misconfigured: resolve with no record changes nothing and says how to fix it" {
+  READINESS_PATH=/healthz POD_GET=fail resolve probe-misconfigured
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"No record of the original probe path"* ]] || false
+  refute_called kubectl "patch"
 }
 
 # ── missing-secret-key ────────────────────────────────────────────────────────
