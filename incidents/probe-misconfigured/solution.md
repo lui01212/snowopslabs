@@ -3,8 +3,8 @@
 ## What happened
 
 A refactor renamed {{.WorkloadName}}'s readiness probe path to `/healthz`,
-a path it does not serve - go-api's own readiness path is `/ready`; a
-different app serves a different one. Every probe gets a 404.
+a path it does not serve - its real readiness path is whatever it answers
+on today, not necessarily `/ready`. Every probe gets a 404.
 Kubernetes never restarts anything for a failed readiness probe - it just
 marks the pod Not Ready and removes it from the Service's endpoints. The app
 is healthy the whole time: it never crashes, never restarts, and its own logs
@@ -39,8 +39,8 @@ kubectl get endpoints {{.WorkloadName}} -n {{.WorkloadNamespace}}   # <none>
 
 ## Fix
 
-Point the probe back at the path the app actually serves (`/ready` for
-go-api; check a different `--app` target's own routes before patching):
+Point the probe back at the path {{.WorkloadName}} actually serves - `/ready`
+here, but check a different `--app` target's own routes before patching:
 
 ```bash
 kubectl -n {{.WorkloadNamespace}} patch deploy {{.WorkloadName}} --type=json \
