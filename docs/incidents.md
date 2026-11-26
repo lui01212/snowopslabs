@@ -46,6 +46,7 @@ you want it.
 | `crashloop-bad-config` | high | The app went down minutes after a config change. Every pod starts, dies within a second and starts again, and no old pod is left to serve. |
 | `bad-deploy-rollout` | medium | A release is stuck. New pods never start while the old version keeps serving. |
 | `liveness-probe-kill` | high | The app restarts every 40 seconds or so and users get bursts of errors. Every restart looks clean, with no crash and no OOM kill. |
+| `probe-misconfigured` | high | Every request fails after a rollout, though every pod is Running with zero restarts. READY never reaches 1/1, and the Service has no endpoints. |
 
 ### Network
 

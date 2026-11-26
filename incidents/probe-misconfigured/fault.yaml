@@ -27,7 +27,7 @@ references:
 
 snippets:
   - label: "Point {{.WorkloadName}}'s readiness probe back at its health endpoint (JSON patch)"
-    description: "Apply with: kubectl -n {{.WorkloadNamespace}} patch deployment {{.WorkloadName}} --type=json --patch-file <this>. Use the path the app really serves."
+    description: "Apply with: kubectl -n {{.WorkloadNamespace}} patch deployment {{.WorkloadName}} --type=json --patch-file <this>. Use the path the app really serves - /ready for go-api, a different path for a different --app target."
     yaml: |
       - op: replace
         path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
