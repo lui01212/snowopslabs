@@ -90,7 +90,7 @@ the live cluster.
 | Data | `event-driven-arch` (a Kafka consumer group falling behind) |
 | Day-2 operations | `node-drain-drill` · `cluster-upgrade-drill` · `backup-restore-drill`, each graded on live traffic |
 
-**12 faults** ([library](docs/incidents.md)), for example:
+**13 faults** ([library](docs/incidents.md)), for example:
 
 | Fault | What you walk into |
 |---|---|

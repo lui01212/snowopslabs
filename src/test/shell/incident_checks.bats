@@ -559,6 +559,111 @@ STUB
   [[ "$output" == *"deployment shop/cart not found"* ]] || false
 }
 
+# ── probe-misconfigured ───────────────────────────────────────────────────────
+
+# PROBE is the container's readiness probe as JSON; PROBE_PATH, PORT and
+# SCHEME are its httpGet fields; GET=fail makes the pod answer the path with
+# an error.
+readiness_stub() {
+  stub_script kubectl <<'STUB'
+default_probe='{"httpGet":{}}'
+case "$*" in
+  *"readinessProbe.httpGet.path}"*) printf '%s' "${PROBE_PATH-/ready}" ;;
+  *"readinessProbe.httpGet.port}"*) printf '%s' "${PORT-http}" ;;
+  *"readinessProbe.httpGet.scheme}"*) printf '%s' "${SCHEME-HTTP}" ;;
+  *"readinessProbe}"*) printf '%s' "${PROBE-$default_probe}" ;;
+  *'ports[?(@.name=="http")].containerPort}'*) printf '8080' ;;
+  *"go-template"*) printf 'app.kubernetes.io/name=cart,' ;;
+  *"get pods"*"status.phase=Running"*) printf '%s' "${RUNNING-cart-abc}" ;;
+  *"get --raw /api/v1/namespaces/shop/pods/"*) [ "${GET:-ok}" = ok ] || exit 1 ;;
+  *"rollout status"*) [ "${ROLLED_OUT:-yes}" = yes ] || exit 1 ;;
+  *"get deploy"*"jsonpath={.spec.replicas}"*)
+    [ "${DEPLOY_EXISTS:-yes}" = yes ] || exit 1
+    echo "${REPLICAS:-1}"
+    ;;
+  *"get deploy"*"jsonpath={.status.readyReplicas}"*) echo "${READY-1}" ;;
+  *"get pods"*) echo "cart-abc   false   <none>   0" ;;
+esac
+STUB
+}
+
+@test "probe-misconfigured passes when the probe's path answers and every replica is ready" {
+  readiness_stub
+  check probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl "get --raw /api/v1/namespaces/shop/pods/cart-abc:8080/proxy/ready"
+}
+
+@test "probe-misconfigured fails while the fault is in: the probe's path does not answer" {
+  readiness_stub
+  PROBE_PATH=/healthz GET=fail check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"GET /healthz on port 8080) does not succeed on cart-abc"* ]] || false
+}
+
+@test "probe-misconfigured fails the wrong fix: a longer delay on a path that still 404s" {
+  readiness_stub
+  PROBE='{"httpGet":{"path":"/healthz"},"initialDelaySeconds":600}' PROBE_PATH=/healthz GET=fail \
+    check probe-misconfigured
+  [ "$status" -ne 0 ]
+}
+
+@test "probe-misconfigured fails the wrong fix: the probe deleted" {
+  readiness_stub
+  PROBE="" PROBE_PATH="" check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"has no readiness probe"* ]] || false
+}
+
+@test "probe-misconfigured passes a probe that is not HTTP" {
+  readiness_stub
+  PROBE='{"tcpSocket":{"port":8080}}' PROBE_PATH="" check probe-misconfigured
+  [ "$status" -eq 0 ]
+  refute_called kubectl "get --raw"
+}
+
+@test "probe-misconfigured asks a numbered port and an HTTPS probe the way the kubelet does" {
+  readiness_stub
+  PORT=9443 SCHEME=HTTPS check probe-misconfigured
+  [ "$status" -eq 0 ]
+  assert_called kubectl "get --raw /api/v1/namespaces/shop/pods/https:cart-abc:9443/proxy/ready"
+}
+
+@test "probe-misconfigured fails with a reason when the probe names an undeclared port" {
+  readiness_stub
+  PORT=metrics check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"names a port the container does not declare"* ]] || false
+}
+
+@test "probe-misconfigured fails with a reason when no pod is running to try the probe on" {
+  readiness_stub
+  RUNNING="" check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no pod of shop/cart is running"* ]] || false
+}
+
+@test "probe-misconfigured fails while the rollout has not completed" {
+  readiness_stub
+  ROLLED_OUT=no READY=0 check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"rollout of shop/cart has not completed"* ]] || false
+}
+
+@test "probe-misconfigured fails the wrong fix: scaled to zero" {
+  readiness_stub
+  REPLICAS=0 check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"scaled to 0 replicas"* ]] || false
+}
+
+@test "probe-misconfigured fails when the workload is gone" {
+  readiness_stub
+  DEPLOY_EXISTS=no check probe-misconfigured
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"deployment shop/cart not found"* ]] || false
+}
+
 # ── missing-secret-key ────────────────────────────────────────────────────────
 
 # REFS is "<env>|<secret>|<key>" per variable, KEYS the Secret's keys, and

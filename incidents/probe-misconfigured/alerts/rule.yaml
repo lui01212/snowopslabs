@@ -1,0 +1,30 @@
+# Applied by inject.sh into the monitoring namespace; the `release: prometheus`
+# label is required by kube-prometheus-stack's rule selector, and the `labfault`
+# alert label routes it to the pager (see
+# platform/monitoring/metrics/prometheus/values.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: labfault-probe-misconfigured
+  labels:
+    release: prometheus
+    labfault: "true"
+spec:
+  groups:
+    - name: labfault-probe-misconfigured
+      rules:
+        # absent(), not "count() == 0": kube-state-metrics emits one series per
+        # ready endpoint address, so zero ready endpoints means no series to
+        # compare against zero, and a count-based rule would silently never
+        # fire. This is the same external symptom service-selector-broken's
+        # rule watches for - no ready endpoints - whatever the internal cause.
+        - alert: LabFaultPodNotReady
+          expr: |
+            absent(kube_endpointslice_endpoints{namespace="${TARGET_NAMESPACE}",endpointslice=~"${TARGET_WORKLOAD}-[a-z0-9]+",ready="true"})
+          for: 1m
+          labels:
+            labfault: "true"
+            severity: critical
+          annotations:
+            summary: "${TARGET_NAMESPACE}/${TARGET_WORKLOAD} has no ready endpoints"
+            description: "Nothing is behind this Service, so the ingress has nowhere to send traffic and every request fails. The pods may well be Running - check whether they are actually passing their readiness probe."
