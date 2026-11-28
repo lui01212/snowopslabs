@@ -36,13 +36,15 @@ esac
 exit 0
 STUB
   # Grafana's datasource proxy: Tempo's tag values, and Loki answering the
-  # trace_id query and the any-line query separately.
+  # trace_id query, the app's any-line query and the namespace's separately.
+  # The app's answer defaults to the namespace's.
   stub_script curl <<'STUB'
 case "$*" in
   *"/uid/tempo/"*) printf '%s' "${TEMPO-}" ;;
   *"/uid/loki/"*)
     case "$*" in
       *trace_id*) printf '%s' "${LOKI_TRACED-}" ;;
+      *'app="cart"'*) printf '%s' "${LOKI_APP-${LOKI_ANY-}}" ;;
       *) printf '%s' "${LOKI_ANY-}" ;;
     esac
     ;;
@@ -237,6 +239,22 @@ no_logs='{"status":"success","data":{"result":[]}}'
   LOKI_TRACED="$no_logs" LOKI_ANY="$no_logs" check observability-sre/checks/logs-carry-trace-ids.sh
   [ "$status" -ne 0 ]
   [[ "$output" == *"no logs from namespace shop are reaching Loki"* ]] || false
+}
+
+# The dashboards filter on app. Lines that reach Loki without it leave every
+# panel empty, so the check must not pass on the namespace alone.
+@test "logs-carry-trace-ids fails when the namespace's logs carry no app label" {
+  LOKI_TRACED="$no_logs" LOKI_APP="$no_logs" LOKI_ANY="$any_logs" check observability-sre/checks/logs-carry-trace-ids.sh
+  [ "$status" -ne 0 ]
+  [[ "$output" == *'none carry app="cart"'* ]] || false
+  [[ "$output" == *"alloy-logs"* ]] || false
+}
+
+@test "logs-carry-trace-ids asks Loki for the app's lines, not the whole namespace" {
+  LOKI_TRACED='{"status":"success","data":{"result":[{"values":[["1","{\"trace_id\":\"abc\"}"]]}]}}' \
+    check observability-sre/checks/logs-carry-trace-ids.sh
+  [ "$status" -eq 0 ]
+  assert_called curl 'query={namespace="shop", app="cart"} |= `trace_id`'
 }
 
 @test "logs-carry-trace-ids fails when Loki cannot be queried" {

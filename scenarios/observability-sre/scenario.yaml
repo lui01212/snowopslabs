@@ -52,15 +52,15 @@ stages:
         platformValues: logging/loki
         adopt: true
 
-      # Promtail is deprecated and end-of-life upstream; it is pinned here and
-      # kept until the Alloy log-shipping migration lands (see ADR-0012).
-      - name: promtail
+      # One Alloy per node ships pod logs to Loki. It is a separate release
+      # from the trace gateway below, which runs as a single replica.
+      - name: alloy-logs
         type: helm
-        chart: grafana/promtail
+        chart: grafana/alloy
         repo: https://grafana.github.io/helm-charts
-        version: "6.17.1"
+        version: "1.12.1"
         namespace: "{{.MonitoringNamespace}}"
-        platformValues: logging/loki/promtail-values.yaml
+        platformValues: logging/loki/alloy-logs-values.yaml
         adopt: true
 
   - name: tracing
@@ -128,14 +128,14 @@ checks:
     value: "1"
     remediation: "Loki stores the logs this scenario queries. It is installed by the scenario - re-activate if it did not come up: labctl scenario up observability-sre --force"
 
-  - name: promtail-ready
+  - name: alloy-logs-ready
     type: kubectl
-    resource: daemonset/promtail
+    resource: daemonset/alloy-logs
     namespace: "{{.MonitoringNamespace}}"
     jsonpath: "{.status.numberReady}"
     operator: ">="
     value: "1"
-    remediation: "Promtail ships the logs into Loki; without it every log query is empty. Check the DaemonSet: kubectl -n {{.MonitoringNamespace}} get ds promtail"
+    remediation: "Alloy ships the logs into Loki; without it every log query is empty. Check the DaemonSet: kubectl -n {{.MonitoringNamespace}} get ds alloy-logs"
 
   - name: tempo-ready
     type: kubectl
@@ -295,5 +295,5 @@ explore:
     - "Three signals, one request. Metrics say a request was slow, logs say what it did, traces say where the time went. The link between them is the trace_id {{.WorkloadName}} writes on every access-log line - Grafana's Loki datasource turns it into a clickable link to the trace."
     - "Tempo's HTTP API listens on 3200, not 3100. A Grafana datasource pointing at 3100 fails every trace query with a connection error and looks exactly like 'no traces were recorded'."
     - "Use k6, not a curl loop: 'labctl traffic start --app {{.WorkloadName}} --profile steady --rps 25'. k6 holds a constant ARRIVAL rate, so latency changes show up as queueing rather than as fewer requests. Its client-side metrics are remote-written to Prometheus and graphed next to the app's own counters on the Application Request Metrics dashboard."
-    - "If a dashboard panel is empty, check the pipeline before the query: is Prometheus scraping the target (Status > Targets), is Promtail attaching the label your query filters on, is the app actually exporting? 'labctl scenario verify observability-sre' now checks each of those."
+    - "If a dashboard panel is empty, check the pipeline before the query: is Prometheus scraping the target (Status > Targets), is Alloy attaching the label your query filters on, is the app actually exporting? 'labctl scenario verify observability-sre' now checks each of those."
     - "Loki and Tempo are platform components. This scenario adopts them when they are already installed rather than upgrading them, because most of a StatefulSet's spec is immutable and re-applying different values fails outright."

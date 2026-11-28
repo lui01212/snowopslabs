@@ -102,3 +102,12 @@ $script: unbounded namespace delete: kubectl $line" ;;
   [ "$status" -eq 0 ] || { echo "$output"; false; }
   assert_called kubectl "delete configmap tempo-grafana-datasource --namespace obs --ignore-not-found"
 }
+
+# Removing logging removes its shipper, and a Promtail an older lab still runs.
+@test "loki uninstall removes alloy-logs and any leftover Promtail" {
+  export MONITORING_NAMESPACE=obs
+  run bash "$ROOT/platform/logging/loki/uninstall.sh"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+  assert_called helm "uninstall alloy-logs --namespace obs"
+  assert_called helm "uninstall promtail --namespace obs"
+}

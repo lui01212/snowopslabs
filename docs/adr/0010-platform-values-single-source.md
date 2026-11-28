@@ -35,7 +35,7 @@ Deployment, the other is managed by an operator.
 A component's values live in exactly one file, under `platform/`.
 
 1. A scenario references it with `platformValues: logging/loki` (the component's
-   `values.yaml`) or `platformValues: logging/loki/promtail-values.yaml` (a
+   `values.yaml`) or `platformValues: logging/loki/alloy-logs-values.yaml` (a
    specific file), and supplies only its differences in `valuesFile`. Helm
    applies them in that order, so the scenario overlay wins on conflicts.
 2. A scenario component may set `adopt: true`. When the release already exists,

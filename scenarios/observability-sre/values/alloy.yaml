@@ -4,8 +4,8 @@
 # batching, retry and sampling, so the trace backend can be replaced without
 # redeploying a single application.
 #
-# Alloy also replaces Promtail for logs eventually; this lab still ships logs
-# with Promtail (see docs/adr) and uses Alloy only for traces.
+# Logs ship through a separate Alloy release, alloy-logs, which runs on every
+# node (platform/logging/loki/alloy-logs-values.yaml).
 
 controller:
   # One collector, not a per-node agent: it receives OTLP over the network

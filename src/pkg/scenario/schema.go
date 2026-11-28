@@ -127,7 +127,7 @@ type Component struct {
 
 	// PlatformValues names a platform component ("logging/loki"), whose
 	// values.yaml is used as the base values, or a specific file
-	// ("logging/loki/promtail-values.yaml"). ValuesFile is applied on top.
+	// ("logging/loki/alloy-logs-values.yaml"). ValuesFile is applied on top.
 	// Use it instead of copying the platform's values into the scenario.
 	PlatformValues string `yaml:"platformValues,omitempty" json:"platformValues,omitempty"`
 

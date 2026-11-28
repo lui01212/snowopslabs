@@ -5,16 +5,16 @@ NAMESPACE="${MONITORING_NAMESPACE:-monitoring}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../../_lib/helm.sh
 . "$(cd "$SCRIPT_DIR/../.." && pwd)/_lib/helm.sh"
-PROMTAIL_VALUES_FILE="$(mktemp "${TMPDIR:-/tmp}/promtail-values.XXXXXX")"
-trap 'rm -f "$PROMTAIL_VALUES_FILE"' EXIT
+ALLOY_VALUES_FILE="$(mktemp "${TMPDIR:-/tmp}/alloy-logs-values.XXXXXX")"
+trap 'rm -f "$ALLOY_VALUES_FILE"' EXIT
 
 # Log retention: default 7 days (168h). Set LOKI_RETENTION_HOURS to override.
 # Set to 0 to disable retention (logs never expire).
 RETENTION_HOURS="${LOKI_RETENTION_HOURS:-168}"
 GRAFANA_CHARTS_REPO="${GRAFANA_CHARTS_REPO:-https://grafana-community.github.io/helm-charts}"
-PROMTAIL_CHARTS_REPO="${PROMTAIL_CHARTS_REPO:-https://grafana.github.io/helm-charts}"
+ALLOY_CHARTS_REPO="${ALLOY_CHARTS_REPO:-https://grafana.github.io/helm-charts}"
 LOKI_CHART_VERSION="${LOKI_CHART_VERSION:-18.12.0}"
-PROMTAIL_CHART_VERSION="${PROMTAIL_CHART_VERSION:-6.17.1}"
+ALLOY_CHART_VERSION="${ALLOY_CHART_VERSION:-1.12.1}"
 if [ "$RETENTION_HOURS" = "0" ]; then
   RETENTION_PERIOD="0s"
 else
@@ -23,10 +23,10 @@ fi
 
 echo "Installing Loki (single-binary mode, namespace=${NAMESPACE}, retention=${RETENTION_PERIOD})..."
 
-# Loki's chart is maintained in grafana-community; Promtail only exists in the
-# original grafana repo (it is deprecated and has no successor there).
+# Loki's chart is maintained in grafana-community; Alloy's is in the original
+# grafana repo.
 helm repo add grafana-community "$GRAFANA_CHARTS_REPO" --force-update
-helm repo add grafana "$PROMTAIL_CHARTS_REPO" --force-update
+helm repo add grafana "$ALLOY_CHARTS_REPO" --force-update
 helm repo update grafana-community grafana
 
 # Clean up stuck pending releases if any
@@ -55,26 +55,31 @@ echo "Adding the Loki datasource to Grafana..."
 sed "s/\.monitoring\.svc/.${NAMESPACE}.svc/g" "$SCRIPT_DIR/grafana-datasource.yaml" |
   kubectl apply --namespace "$NAMESPACE" -f -
 
-echo "Installing Promtail..."
+echo "Installing Alloy (log shipping)..."
 
-# Render promtail-values.yaml with the real monitoring namespace. This file used
-# to be passed as an empty mktemp, so Promtail silently ran on chart defaults
-# and none of the settings below took effect.
-sed "s/\.monitoring\.svc/.${NAMESPACE}.svc/g" "$SCRIPT_DIR/promtail-values.yaml" >"$PROMTAIL_VALUES_FILE"
+# Render alloy-logs-values.yaml with the real monitoring namespace.
+sed "s/\.monitoring\.svc/.${NAMESPACE}.svc/g" "$SCRIPT_DIR/alloy-logs-values.yaml" >"$ALLOY_VALUES_FILE"
 
 # Clean up stuck pending releases if any
-if helm status promtail -n "$NAMESPACE" 2>/dev/null | grep -q "pending-"; then
-  echo "Cleaning up stuck Promtail release..."
-  helm delete promtail -n "$NAMESPACE" --wait 2>/dev/null || true
+if helm status alloy-logs -n "$NAMESPACE" 2>/dev/null | grep -q "pending-"; then
+  echo "Cleaning up stuck Alloy release..."
+  helm delete alloy-logs -n "$NAMESPACE" --wait 2>/dev/null || true
 fi
 
-helm_upgrade_install promtail "$NAMESPACE" grafana/promtail \
+helm_upgrade_install alloy-logs "$NAMESPACE" grafana/alloy \
   --namespace "$NAMESPACE" \
-  --version "$PROMTAIL_CHART_VERSION" \
-  -f "$PROMTAIL_VALUES_FILE" \
+  --version "$ALLOY_CHART_VERSION" \
+  -f "$ALLOY_VALUES_FILE" \
   --wait --timeout 5m
 
-echo "Waiting for Promtail to be ready..."
-kubectl rollout status daemonset/promtail -n "$NAMESPACE" --timeout=120s || true
+echo "Waiting for Alloy to be ready..."
+kubectl rollout status daemonset/alloy-logs -n "$NAMESPACE" --timeout=120s || true
 
-echo "Loki + Promtail installed successfully."
+# A lab built before the move to Alloy still runs Promtail. Left in place it
+# ships every line a second time, so it goes once Alloy is up.
+if helm status promtail -n "$NAMESPACE" >/dev/null 2>&1; then
+  echo "Removing Promtail, replaced by Alloy..."
+  helm uninstall promtail --namespace "$NAMESPACE" --wait 2>/dev/null || true
+fi
+
+echo "Loki + Alloy installed successfully."

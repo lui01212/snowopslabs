@@ -17,7 +17,7 @@ agent: 600
 # Helm releases scenarios install, by release name.
 releases:
   loki: 200
-  promtail: 150
+  alloy-logs: 150  # estimate
   tempo: 50
   alloy: 100  # estimate
   kyverno: 300
@@ -36,7 +36,7 @@ platform:
   mesh: 100
   mesh/istio: 100
   mesh/linkerd: 100  # estimate
-  logging/loki: 350  # loki + promtail
+  logging/loki: 350  # loki + alloy-logs, estimate
   tracing/tempo: 50
 
 # Deployable apps, by name.

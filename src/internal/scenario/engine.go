@@ -870,7 +870,7 @@ func (e *Engine) installHelm(s *Scenario, comp *Component, exec CommandExecutor)
 	// -f files in order, so the scenario's values win.
 	if comp.PlatformValues != "" {
 		// Either a component directory ("logging/loki" means its values.yaml)
-		// or a specific file ("logging/loki/promtail-values.yaml").
+		// or a specific file ("logging/loki/alloy-logs-values.yaml").
 		rel := filepath.FromSlash(comp.PlatformValues)
 		if filepath.Ext(rel) == "" {
 			rel = filepath.Join(rel, "values.yaml")

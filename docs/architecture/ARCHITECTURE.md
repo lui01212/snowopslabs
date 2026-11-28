@@ -440,7 +440,8 @@ What the labs themselves emit, as distinct from labctl's instrumentation:
   also remote-writes k6's client-side metrics, so a dashboard can show what the
   generator sent next to what the app received. A gap between the two means
   requests are being lost before the app sees them.
-- **Logs**: Promtail ships pod logs to Loki, relabelling the pod's `app` label
+- **Logs**: Grafana Alloy (`alloy-logs`, one pod per node) ships pod logs to
+  Loki, relabelling the pod's `app` label
   so `{app="go-api"}` resolves.
 - **Traces**: apps export OTLP to **Grafana Alloy**, which forwards to Tempo.
   Never straight to the backend ([ADR-0012](../adr/0012-alloy-as-trace-collector.md)).

@@ -151,9 +151,11 @@ twice.
 **Kafka's `messagesin` and `bytesin` exist as both per-topic and cluster-total
 series.** Summing without `topic!=""` double-counts.
 
-**Promtail labels come from relabelling.** `{app="go-api"}` only matches because
-`promtail-values.yaml` relabels the pod's `app` label. No relabel, no label,
-empty dashboard.
+**Log labels come from relabelling.** `{app="go-api"}` only matches because
+`alloy-logs-values.yaml` relabels the pod's `app` label. No relabel, no label,
+empty dashboard. A lab built while Promtail shipped the logs moves over with
+`labctl platform up logging/loki`: the install starts `alloy-logs` and then
+removes the `promtail` release, so no line ships twice.
 
 **The annotation scrape job is `kubernetes-pods` for every pod.** Dashboard
 queries must filter on `app`, never on `job="<app name>"`.
@@ -256,7 +258,7 @@ In **Grafana → Explore → Loki**:
 {app="go-api"}
 ```
 
-**Expect:** both return lines. `{app="go-api"}` only works because Promtail
+**Expect:** both return lines. `{app="go-api"}` only works because Alloy
 relabels the pod's `app` label - if the first query works and the second does
 not, the relabel config is missing.
 
@@ -511,10 +513,10 @@ labctl lab down
 `kubectl -n go-api get deploy go-api -o yaml | grep OTEL` returning nothing.
 
 It must also **leave the platform's releases installed**: Loki, Tempo and
-Promtail are adopted, not owned:
+alloy-logs are adopted, not owned:
 
 ```bash
-helm list -n monitoring | grep -E 'loki|tempo|promtail'
+helm list -n monitoring | grep -E 'loki|tempo|alloy-logs'
 ```
 
 **Expect:** all three still present. Only `alloy`, which the scenario installed

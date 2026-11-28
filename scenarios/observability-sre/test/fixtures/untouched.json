@@ -14,7 +14,7 @@
   },
   "prometheusURL": "http://prometheus.snowops.localhost",
   "kubectl": {
-    "get daemonset/promtail --namespace monitoring -o jsonpath={.status.numberReady}": {
+    "get daemonset/alloy-logs --namespace monitoring -o jsonpath={.status.numberReady}": {
       "out": "2"
     },
     "get deployment/alloy --namespace monitoring -o jsonpath={.status.readyReplicas}": {
@@ -55,12 +55,12 @@
   "results": {
     "alerting-rules-installed": true,
     "alloy-collector-ready": true,
+    "alloy-logs-ready": true,
     "an-sre-alert-fired": false,
     "app-exports-traces-to-collector": false,
     "app-under-real-load": false,
     "grafana-reachable": true,
     "loki-ready": true,
-    "promtail-ready": true,
     "tempo-ready": true
   }
 }

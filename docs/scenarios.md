@@ -70,7 +70,7 @@ installed. The web UI (`labctl ui`) does the same in one click.
 
 **What it stages:**
 - Loki (log aggregation, `grafana-community/loki`): adopted when the platform already installed it
-- Promtail (log shipping agent, `grafana/promtail`; deprecated upstream, see ADR-0012)
+- Grafana Alloy as the log shipping agent (`alloy-logs`, one pod per node)
 - Tempo (trace backend, `grafana-community/tempo`)
 - Grafana Alloy (OTLP trace **collector**: the app exports here, Alloy forwards to Tempo)
 - Alerting rules (PrometheusRule CRDs: error rate, latency, memory saturation, CPU throttling, readiness)
@@ -96,7 +96,7 @@ unwired and ends clean.
 - Apps: the bound workload, which must declare `prometheus-metrics`,
   `otlp-tracing` and `readiness-toggle`
 
-**Checks (11):** six guard the stack labctl stands up (Loki, Promtail, Tempo,
+**Checks (11):** six guard the stack labctl stands up (Loki, Alloy log shipping, Tempo,
 Alloy, the PrometheusRule's `release` label, Grafana). Five grade the drill and
 are `pending` until it is done: the app is under real load, it exports to the
 collector, spans arrived in Tempo, its logs are queryable in Loki and carry

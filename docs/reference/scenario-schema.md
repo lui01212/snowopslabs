@@ -226,7 +226,7 @@ keeps a second full copy.
 
 ```yaml
 platformValues: logging/loki                        # the whole component's values
-platformValues: logging/loki/promtail-values.yaml   # or one specific file
+platformValues: logging/loki/alloy-logs-values.yaml # or one specific file
 valuesFile: values/loki.yaml                        # overlay
 ```
 

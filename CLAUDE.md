@@ -130,7 +130,7 @@ most often broken:
 Full detail lives with the subject; these are the pointers.
 
 - **Observability**: kube-prometheus-stack's empty selectors, Tempo on port
-  3200, Kafka's two metric sources, Promtail relabelling, k6's seconds-not-
+  3200, Kafka's two metric sources, Alloy relabelling, k6's seconds-not-
   milliseconds: [R13](docs/runbooks/R13-observability-pipeline.md).
 - **Helm**: `upgrade` and `uninstall` both ignore CRDs; most of a StatefulSet
   spec is immutable, so use `helm_upgrade_install` from `platform/_lib/helm.sh`:

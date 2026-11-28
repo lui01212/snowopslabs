@@ -7,8 +7,8 @@ echo "=== Loki Status ==="
 kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=loki 2>/dev/null || echo "Loki not found"
 
 echo ""
-echo "=== Promtail Status ==="
-kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=promtail 2>/dev/null || echo "Promtail not found"
+echo "=== Alloy (log shipping) Status ==="
+kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/instance=alloy-logs 2>/dev/null || echo "Alloy not found"
 
 echo ""
 echo "=== Loki Services ==="

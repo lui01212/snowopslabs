@@ -83,9 +83,9 @@ cluster_reachable() {
 }
 
 # Raise fs.inotify.max_user_instances on every node. The default (128) is quickly
-# exhausted by log/file watchers - most visibly promtail (observability-sre),
-# which crash-loops with "too many open files: failed to make file target
-# manager". k3d nodes run privileged and share the colima/Docker VM kernel, so
+# exhausted by log/file watchers - most visibly the log shipper, which
+# crash-loops with "too many open files" (Promtail's "failed to make file
+# target manager"). k3d nodes run privileged and share the colima/Docker VM kernel, so
 # setting the sysctl on each node container raises the effective limit for the
 # whole cluster. Best-effort: never fail cluster bringup over this.
 raise_inotify_limits() {

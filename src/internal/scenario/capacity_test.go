@@ -35,10 +35,10 @@ components:
     type: helm
     chart: grafana/loki
     namespace: "{{.MonitoringNamespace}}"
-  - name: promtail
+  - name: alloy-logs
     type: helm
-    chart: grafana/promtail
-    platformValues: logging/loki/promtail-values.yaml
+    chart: grafana/alloy
+    platformValues: logging/loki/alloy-logs-values.yaml
     adopt: true
   - name: seed
     type: script
@@ -81,7 +81,7 @@ func TestAdoptedFrom(t *testing.T) {
 		ok       bool
 	}{
 		{name: "component directory", comp: Component{Adopt: true, PlatformValues: "tracing/tempo"}, expected: "tracing/tempo", ok: true},
-		{name: "file inside it", comp: Component{Adopt: true, PlatformValues: "logging/loki/promtail-values.yaml"}, expected: "logging/loki", ok: true},
+		{name: "file inside it", comp: Component{Adopt: true, PlatformValues: "logging/loki/alloy-logs-values.yaml"}, expected: "logging/loki", ok: true},
 		{name: "not adopted", comp: Component{PlatformValues: "tracing/tempo"}},
 		{name: "no platform values", comp: Component{Adopt: true}},
 		{name: "bare category", comp: Component{Adopt: true, PlatformValues: "mesh"}},

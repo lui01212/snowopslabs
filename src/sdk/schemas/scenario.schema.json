@@ -99,7 +99,7 @@
         "valuesFile": { "type": "string" },
         "platformValues": {
           "type": "string",
-          "description": "Platform component whose values are the base for this release, e.g. \"logging/loki\" (its values.yaml) or \"logging/loki/promtail-values.yaml\". valuesFile is layered on top as an overlay. Use this instead of copying a platform component's values into the scenario."
+          "description": "Platform component whose values are the base for this release, e.g. \"logging/loki\" (its values.yaml) or \"logging/loki/alloy-logs-values.yaml\". valuesFile is layered on top as an overlay. Use this instead of copying a platform component's values into the scenario."
         },
         "adopt": {
           "type": "boolean",

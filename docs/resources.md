@@ -33,7 +33,7 @@ against:
 | security-compliance | 3.1 GB | Kyverno, cert-manager |
 | chaos-engineering | 3.2 GB | Chaos Mesh, plus the stress it applies |
 | gitops-cicd | 3.2 GB | Argo CD |
-| observability-sre | 3.3 GB | Loki, Promtail, Tempo, Alloy |
+| observability-sre | 3.3 GB | Loki, Tempo, two Alloy releases (logs, traces) |
 | event-driven-arch | 3.6 GB | Kafka |
 
 The lab itself (server node, one agent, Traefik, Prometheus, Grafana) is about

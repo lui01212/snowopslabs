@@ -36,6 +36,13 @@ shipper.
 - Promtail continues to ship logs, pinned, until a later change moves log
   collection to the Alloy instance that is now already running.
 
+**Update (#46):** logs now ship through Alloy too. `platform/logging/loki`
+installs a second release, `alloy-logs`, as a DaemonSet that tails
+`/var/log/pods` on each node, and removes a leftover Promtail release. The
+trace gateway stays the single-replica Deployment described here: a
+trace receiver on every node would cost memory for nothing, and the
+platform's logging install has no trace gateway to merge into.
+
 ## Alternatives considered
 
 | Alternative | Why rejected |

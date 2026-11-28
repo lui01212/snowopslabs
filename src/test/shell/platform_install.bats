@@ -351,3 +351,51 @@ EOF
   [[ "$output" == *"the retry failed too"* ]] || false
   [[ "$output" != *"couldn't get resource list"* ]] || false
 }
+
+# Promtail is end-of-life upstream; Alloy ships the logs (#46). One Alloy per
+# node reads the log files the kubelet writes there.
+@test "loki install ships logs with an alloy-logs DaemonSet, not Promtail" {
+  stub_when helm "status promtail" 1
+  export MONITORING_NAMESPACE=obs
+  run bash "$ROOT/platform/logging/loki/install.sh"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+  assert_called helm "upgrade --install alloy-logs grafana/alloy --namespace obs --version 1.12.1"
+  assert_called kubectl "rollout status daemonset/alloy-logs -n obs"
+  refute_called helm "grafana/promtail"
+  refute_called helm "uninstall promtail"
+}
+
+# A lab built while Promtail shipped the logs keeps it until logging is
+# reinstalled. Left running next to Alloy, it ships every line a second time.
+@test "loki install removes a Promtail release left by an older lab" {
+  stub_when helm "status promtail" 0 "STATUS: deployed"
+  run bash "$ROOT/platform/logging/loki/install.sh"
+  [ "$status" -eq 0 ] || { echo "$output"; false; }
+  assert_called helm "uninstall promtail --namespace monitoring"
+  [ "$(calls_for helm | grep -n 'upgrade --install alloy-logs' | cut -d: -f1)" -lt \
+    "$(calls_for helm | grep -n 'uninstall promtail' | cut -d: -f1)" ] ||
+    { echo "promtail goes before alloy-logs is up"; calls_for helm; false; }
+}
+
+# Without app and namespace on each stream, {app="go-api"} matches nothing and
+# the dashboards read as broken. The relabel rules are what attach them.
+@test "alloy-logs relabels the pod's app label and namespace onto each stream" {
+  values="$ROOT/platform/logging/loki/alloy-logs-values.yaml"
+  for rule in "__meta_kubernetes_pod_label_app|app" "__meta_kubernetes_namespace|namespace"; do
+    run grep -A1 "source_labels = \[\"${rule%%|*}\"\]" "$values"
+    [ "$status" -eq 0 ] || { echo "no rule reads ${rule%%|*}"; false; }
+    [[ "$output" == *"target_label  = \"${rule#*|}\""* ]] || { echo "$output"; false; }
+  done
+  grep -q '^  type: daemonset$' "$values"
+  grep -q 'url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"' "$values"
+}
+
+# observability-sre adopts the platform's log shipper rather than keeping a copy
+# of its values, and checks it by the same name.
+@test "observability-sre ships logs with the platform's alloy-logs release" {
+  scenario="$ROOT/scenarios/observability-sre/scenario.yaml"
+  grep -q 'platformValues: logging/loki/alloy-logs-values.yaml$' "$scenario"
+  grep -q 'resource: daemonset/alloy-logs$' "$scenario"
+  run grep -n 'promtail' "$scenario"
+  [ "$status" -ne 0 ] || { echo "$output"; false; }
+}

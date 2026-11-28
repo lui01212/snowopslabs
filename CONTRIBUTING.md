@@ -154,7 +154,7 @@ and each is an afternoon you do not have to lose:
 - **Helm**: `upgrade` and `uninstall` both ignore CRDs; most of a StatefulSet
   spec is immutable: [R05](docs/runbooks/R05-platform-components.md).
 - **Metrics, logs and traces**: empty-selector fallbacks, Tempo's real port,
-  Promtail relabelling, k6's units:
+  Alloy relabelling, k6's units:
   [R13](docs/runbooks/R13-observability-pipeline.md).
 - **Writing a scenario**: values ownership, chart pinning, checks that teach:
   [scenario schema](docs/reference/scenario-schema.md).
